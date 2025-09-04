@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"latex-clipboard/src/integrations"
@@ -62,6 +63,23 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "cloudinary upload failed", http.StatusInternalServerError)
 		return
 	}
+
+	// Call LLM
+	latex, err := integrations.GenerateLatexFromImage(secureURL)
+	if err != nil {
+		log.Printf("OpenAI error: %v", err)
+		http.Error(w, "openai processing failed", http.StatusInternalServerError)
+		return
+	}
+
+	// Respond with JSON (Cloudinary URL + LaTeX)
+	resp := map[string]string{
+		"cloudinary_url": secureURL,
+		"latex":          latex,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+
 
 	log.Printf("Upload success → %s", secureURL)
 	fmt.Fprintf(w, "Cloudinary URL: %s\n", secureURL)

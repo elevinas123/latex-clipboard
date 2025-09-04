@@ -25,7 +25,6 @@ func main() {
 	// Load config from env
 	cloudURL := os.Getenv("CLOUDINARY_URL")
 	uploadPreset = os.Getenv("CLOUDINARY_UPLOAD_PRESET")
-
 	if cloudURL == "" || uploadPreset == "" {
 		log.Fatal("CLOUDINARY_URL and CLOUDINARY_UPLOAD_PRESET must be set")
 	}

@@ -11,9 +11,13 @@ import (
 	"os"
 	"path/filepath"
 )
-
+type EagerItem struct {
+    SecureURL string `json:"secure_url"`
+}
 type CloudinaryResp struct {
-	SecureURL string `json:"secure_url"`
+    SecureURL string      `json:"secure_url"` // original (HEIC)
+    PublicID  string      `json:"public_id"`
+    Eager     []EagerItem `json:"eager"`
 }
 
 var (
@@ -68,5 +72,11 @@ func UploadToCloudinary(filePath string) (string, error) {
 	if err := json.Unmarshal(body, &cr); err != nil {
 		return "", fmt.Errorf("parse response error: %w", err)
 	}
-	return cr.SecureURL, nil
+	jpgURL := cr.SecureURL
+	if len(cr.Eager) > 0 && cr.Eager[0].SecureURL != "" {
+		jpgURL = cr.Eager[0].SecureURL
+	}
+
+	return jpgURL, nil
+
 }
