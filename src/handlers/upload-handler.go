@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"latex-clipboard/src/copy"
 )
 
 func UploadHandler(w http.ResponseWriter, r *http.Request) {
@@ -79,6 +80,15 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
+	// Save to clipboard
+	if err := copy.CopyToClipboard(latex); err != nil {
+		log.Printf("Clipboard error: %v", err)
+	} else {
+		log.Println("Copied result to clipboard")
+	}
+
+	// Notify user
+	copy.NotifyUser("LaTeX copied to clipboard")
 
 
 	log.Printf("Upload success → %s", secureURL)
