@@ -13,8 +13,15 @@ func ImageMoverHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	fmt.Printf("Saved image to %s\n", path)
+
+	finalPath, err := utils.ConvertHEICtoJPG(path)
+	if err != nil {
+		http.Error(w, "failed to convert image", http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Printf("Saved image to %s\n", finalPath)
 	copy.NotifyUser("Image uploaded")
 	w.WriteHeader(http.StatusCreated)
-	_, _ = w.Write([]byte(path))
+	_, _ = w.Write([]byte(finalPath))
 }

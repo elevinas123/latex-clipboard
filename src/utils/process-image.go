@@ -65,21 +65,30 @@ func CopyToFile(dst *os.File, src io.Reader) (int64, error) {
 func SaveRequestBodyAsUpload(w http.ResponseWriter, r *http.Request, dir, baseName string) (string, error) {
 	defer r.Body.Close()
 	r.Body = http.MaxBytesReader(w, r.Body, 25<<20)
+
 	headerCT := ExtractAndNormalizeContentTypeFromHeader(r)
+
 	const sniffSize = 512
 	buf := make([]byte, sniffSize)
-	n, _ := io.ReadFull(r.Body, buf)
+	n, err := r.Body.Read(buf)
+	if err != nil && err != io.EOF {
+		http.Error(w, "failed to read request body", http.StatusBadRequest)
+		return "", fmt.Errorf("failed to read request body: %w", err)
+	}
 	buf = buf[:n]
+
 	detectedCT := http.DetectContentType(buf)
 	ctype := headerCT
 	if ctype == "" || ctype == "application/octet-stream" {
 		ctype = detectedCT
 	}
+
 	ext := InferImageExtension(ctype)
 	if err := EnsureDir(dir); err != nil {
 		http.Error(w, "could not create upload dir", http.StatusInternalServerError)
 		return "", err
 	}
+
 	path := BuildFilePath(dir, baseName, ext)
 	dst, err := CreateFileAt(path)
 	if err != nil {
@@ -87,10 +96,13 @@ func SaveRequestBodyAsUpload(w http.ResponseWriter, r *http.Request, dir, baseNa
 		return "", err
 	}
 	defer dst.Close()
+
 	reader := io.MultiReader(bytes.NewReader(buf), r.Body)
 	if _, err := CopyToFile(dst, reader); err != nil {
 		http.Error(w, "failed to save file", http.StatusInternalServerError)
 		return "", err
 	}
+
 	return path, nil
 }
+
