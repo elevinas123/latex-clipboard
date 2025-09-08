@@ -14,32 +14,11 @@ import (
 func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	reqStart := time.Now()
 
-	ctype, err := utils.ExtractAndNormalizeContentType(r)
+	dstPath, err := utils.SaveRequestBodyAsUpload(w, r, "uploads", "")
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
 		return
 	}
-
-	saveStart := time.Now()
-	ext := utils.InferImageExtension(ctype)
-	if err := utils.EnsureDir("uploads"); err != nil {
-		http.Error(w, "could not create upload dir", http.StatusInternalServerError)
-		return
-	}
-	dstPath := utils.BuildFilePath("uploads", "", ext)
-	dst, err := utils.CreateFileAt(dstPath)
-	if err != nil {
-		http.Error(w, "could not create file", http.StatusInternalServerError)
-		return
-	}
-	defer dst.Close()
-	written, err := utils.CopyToFile(dst, r.Body)
-	if err != nil {
-		http.Error(w, "failed to save file", http.StatusInternalServerError)
-		return
-	}
-	saveDur := time.Since(saveStart)
-	log.Printf("Saved raw upload to %s (%d bytes) in %v", dstPath, written, saveDur)
+	saveDur := time.Since(reqStart)
 
 	cloudStart := time.Now()
 	secureURL, err := integrations.UploadToCloudinary(dstPath)

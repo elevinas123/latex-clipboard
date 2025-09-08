@@ -7,4 +7,5 @@ import (
 func RegisterEndpoints(mux *http.ServeMux) {
 	mux.HandleFunc("/upload", handlers.UploadHandler)
 	mux.HandleFunc("/health", handlers.HealthHandler)
+	mux.HandleFunc("/uploadImage", handlers.ImageMoverHandler)
 }

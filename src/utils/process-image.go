@@ -1,8 +1,10 @@
 package utils
 
 import (
+	"bytes"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -10,26 +12,32 @@ import (
 	"time"
 )
 
-func ExtractAndNormalizeContentType(r *http.Request) (string, error) {
+func ExtractAndNormalizeContentTypeFromHeader(r *http.Request) string {
 	ctype := strings.ToLower(strings.TrimSpace(r.Header.Get("Content-Type")))
 	if ctype == "" {
-		return "", fmt.Errorf("missing Content-Type header")
+		return ""
 	}
-	if strings.HasPrefix(ctype, "multipart/") {
-		return "", fmt.Errorf("multipart not implemented")
+	if mt, _, err := mime.ParseMediaType(ctype); err == nil {
+		return strings.ToLower(mt)
 	}
 	if i := strings.Index(ctype, ";"); i >= 0 {
 		ctype = strings.TrimSpace(ctype[:i])
 	}
-	return ctype, nil
+	return ctype
 }
 
 func InferImageExtension(ctype string) string {
+	ct := strings.ToLower(ctype)
 	switch {
-	case strings.Contains(ctype, "jpeg"):
+	case strings.Contains(ct, "jpeg"):
 		return ".jpg"
-	case strings.Contains(ctype, "png"):
+	case strings.Contains(ct, "png"):
 		return ".png"
+	case strings.Contains(ct, "webp"):
+		return ".webp"
+	case strings.Contains(ct, "heic"),
+		strings.Contains(ct, "heif"):
+		return ".heic"
 	default:
 		return ".bin"
 	}
@@ -55,10 +63,17 @@ func CopyToFile(dst *os.File, src io.Reader) (int64, error) {
 }
 
 func SaveRequestBodyAsUpload(w http.ResponseWriter, r *http.Request, dir, baseName string) (string, error) {
-	ctype, err := ExtractAndNormalizeContentType(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
-		return "", err
+	defer r.Body.Close()
+	r.Body = http.MaxBytesReader(w, r.Body, 25<<20)
+	headerCT := ExtractAndNormalizeContentTypeFromHeader(r)
+	const sniffSize = 512
+	buf := make([]byte, sniffSize)
+	n, _ := io.ReadFull(r.Body, buf)
+	buf = buf[:n]
+	detectedCT := http.DetectContentType(buf)
+	ctype := headerCT
+	if ctype == "" || ctype == "application/octet-stream" {
+		ctype = detectedCT
 	}
 	ext := InferImageExtension(ctype)
 	if err := EnsureDir(dir); err != nil {
@@ -72,7 +87,8 @@ func SaveRequestBodyAsUpload(w http.ResponseWriter, r *http.Request, dir, baseNa
 		return "", err
 	}
 	defer dst.Close()
-	if _, err := CopyToFile(dst, r.Body); err != nil {
+	reader := io.MultiReader(bytes.NewReader(buf), r.Body)
+	if _, err := CopyToFile(dst, reader); err != nil {
 		http.Error(w, "failed to save file", http.StatusInternalServerError)
 		return "", err
 	}
