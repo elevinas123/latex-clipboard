@@ -71,6 +71,7 @@ $$
 - Try to preserve the original structure and numbering from the image (problems, parts (a)/(b), bullets).
 - Normalize math: use \frac{…}{…}, \cdot, \sum, \int, \mathbb{R}, \vec{x}, \ldots, etc.
 - If any symbol/word is unclear, insert [illegible] rather than guessing.
+- Try to be fast and dont think
 `},
  
 					{Type: "image_url", ImageURL: &ImageURL{URL: imageURL}},
